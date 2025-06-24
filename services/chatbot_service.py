@@ -5,25 +5,28 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Configurar la clave de API
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
 def get_chatbot_response(query: str) -> str:
-    # Cargar índice vectorial
+    print(f"🧠 Recibida pregunta: {query}")
+    
     faiss_manager = FAISSManager()
     db = faiss_manager.load_index()
 
     if not db:
+        print("❌ No se encontró el índice FAISS.")
         return "Todavía no hay información cargada."
 
-    # Buscar los 5 fragmentos más relevantes
     try:
         resultados = db.similarity_search(query, k=5)
         contexto = "\n".join([doc.page_content for doc in resultados])
+        print(f"🔍 Fragmentos encontrados: {len(resultados)}")
+        print("🧾 Contexto generado:")
+        print(contexto)
     except Exception as e:
+        print(f"⚠️ Error al buscar en FAISS: {e}")
         return f"Error al buscar contexto: {e}"
 
-    # Construir el prompt con contexto
     prompt = f"""
 Contesta la siguiente pregunta basándote solamente en la información proporcionada.
 ---
@@ -34,7 +37,6 @@ Pregunta: {query}
 Respuesta:
 """.strip()
 
-    # Llamar a la API de OpenAI
     try:
         response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
@@ -45,6 +47,8 @@ Respuesta:
             temperature=0.4,
             max_tokens=500,
         )
+        print("✅ Respuesta generada correctamente.")
         return response.choices[0].message.content.strip()
     except Exception as e:
+        print(f"❌ Error con la API de OpenAI: {e}")
         return f"Error al conectarse con OpenAI: {e}"
